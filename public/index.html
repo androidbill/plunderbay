@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#071c2e">
+<title>Plunder Bay</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="toast" class="toast hidden"></div>
+
+<div id="shoutout" class="shoutout hidden" aria-hidden="true">
+  <div id="shoutout-card" class="shoutout-card"></div>
+</div>
+
+<div id="update-banner" class="update-banner hidden">
+  <span>🆕 A new version is available</span>
+  <button id="update-refresh">Refresh</button>
+</div>
+
+<div id="version-label" class="version-label"></div>
+
+<button id="kebab-btn" class="kebab-btn" aria-label="Menu">⋮</button>
+<div id="kebab-menu" class="kebab-menu hidden">
+  <button id="menu-quit" class="hidden">Leave Game</button>
+  <button id="menu-sound">🔊 Sound on</button>
+  <button id="menu-rules">How to play</button>
+  <button id="menu-refresh">Refresh</button>
+  <button id="menu-share">Share</button>
+  <button id="menu-about">About</button>
+</div>
+
+<!-- HOME -->
+<section id="screen-home" class="screen">
+  <div class="home-wrap">
+    <div class="home-emblem">⚓</div>
+    <h1>Plunder Bay</h1>
+    <p class="tagline">Hide your fleet. Guard your treasure.<br>Sink every ship on the seven seas.</p>
+
+    <label class="field-label" for="home-name">Your pirate name</label>
+    <input id="home-name" class="text-input" maxlength="14" placeholder="Captain…" autocomplete="off">
+
+    <div class="field-label">Game size</div>
+    <div class="seg" id="home-mode">
+      <button data-mode="2" class="on">⚔️ 2 Players</button>
+      <button data-mode="4">👥 4 Players · 2v2</button>
+    </div>
+
+    <button id="btn-host" class="btn btn-primary">Host a Game</button>
+    <button id="btn-join" class="btn btn-secondary">Join with Room Code</button>
+    <button id="btn-rules" class="btn btn-ghost">How to play</button>
+
+    <div id="install-banner" class="install-banner hidden">
+      <span>Add Plunder Bay to your home screen</span>
+      <button id="btn-install" class="btn-mini">Install</button>
+    </div>
+  </div>
+</section>
+
+<!-- JOIN -->
+<section id="screen-join" class="screen hidden">
+  <div class="home-wrap">
+    <button class="back-btn" data-back="screen-home">‹ Back</button>
+    <h2>Join a Game</h2>
+    <label class="field-label" for="join-name">Your pirate name</label>
+    <input id="join-name" class="text-input" maxlength="14" placeholder="Captain…" autocomplete="off">
+    <label class="field-label" for="join-code">Room code</label>
+    <input id="join-code" class="text-input code-input" maxlength="6" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <button id="join-go" class="btn btn-primary">Board the Ship</button>
+  </div>
+</section>
+
+<!-- LOBBY -->
+<section id="screen-lobby" class="screen hidden">
+  <div class="panel-wrap">
+    <button class="back-btn" data-back="screen-home">‹ Leave</button>
+    <div class="code-card">
+      <div class="code-label">Room code</div>
+      <div id="lobby-code" class="code-big">----</div>
+      <button id="lobby-share" class="btn-mini">Share invite</button>
+    </div>
+
+    <div id="lobby-teams" class="lobby-teams"></div>
+
+    <div id="lobby-settings" class="settings-card">
+      <div class="setting-row">
+        <span>Game size</span>
+        <div class="seg small" id="lobby-mode">
+          <button data-mode="2">2 Players</button>
+          <button data-mode="4">4 · 2v2</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span>Turn timer</span>
+        <select id="lobby-timer" class="select">
+          <option value="0">Off</option>
+          <option value="30">30 sec</option>
+          <option value="45">45 sec</option>
+          <option value="60">60 sec</option>
+          <option value="90">90 sec</option>
+        </select>
+      </div>
+    </div>
+
+    <p id="lobby-hint" class="hint"></p>
+    <button id="lobby-start" class="btn btn-primary">Set Sail</button>
+  </div>
+</section>
+
+<!-- PLACEMENT -->
+<section id="screen-place" class="screen hidden">
+  <div class="game-wrap">
+    <div id="place-head" class="place-head"></div>
+    <div id="place-grid" class="grid place-grid"></div>
+    <div id="place-tray" class="tray"></div>
+    <div class="place-actions">
+      <button id="place-rotate" class="btn-mini">↻ Rotate: <span id="place-rot-label">Across</span></button>
+      <button id="place-random" class="btn-mini">🎲 Random</button>
+      <button id="place-clear" class="btn-mini">Clear</button>
+    </div>
+    <p id="place-status" class="hint"></p>
+    <button id="place-ready" class="btn btn-primary">Ready!</button>
+  </div>
+</section>
+
+<!-- GAME -->
+<section id="screen-game" class="screen hidden">
+  <div class="game-wrap">
+    <div class="turn-bar">
+      <div id="turn-banner" class="turn-banner"></div>
+      <div id="turn-timer" class="turn-timer hidden">0</div>
+    </div>
+
+    <div class="board-title"><span id="enemy-title">Enemy waters</span><span id="enemy-loot" class="loot"></span></div>
+    <div id="enemy-grid" class="grid enemy-grid"></div>
+    <div id="enemy-status" class="fleet-status"></div>
+
+    <div class="board-title mine"><span id="own-title">Your fleet</span><span id="own-loot" class="loot"></span></div>
+    <div id="own-grid" class="grid own-grid"></div>
+    <div id="own-status" class="fleet-status"></div>
+  </div>
+  <div class="fire-bar">
+    <button id="fire-btn" class="btn btn-fire" disabled>Pick a target</button>
+  </div>
+</section>
+
+<!-- GAME OVER -->
+<div id="over-modal" class="modal hidden">
+  <div class="modal-card over-card">
+    <div id="over-emoji" class="over-emoji">🏴‍☠️</div>
+    <h2 id="over-title">Victory!</h2>
+    <p id="over-sub"></p>
+    <div id="over-stats" class="over-stats"></div>
+    <button id="over-again" class="btn btn-primary hidden">Play Again</button>
+    <p id="over-wait" class="hint hidden">Waiting for the host to start another round…</p>
+    <button id="over-view" class="btn btn-secondary">View the seas</button>
+    <button id="over-leave" class="btn btn-ghost">Leave</button>
+  </div>
+</div>
+
+<!-- RULES -->
+<div id="rules-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2>How to play</h2>
+    <ul class="rules-list">
+      <li><b>Hide your fleet.</b> Place 5 ships and 3 treasure chests on a 10×10 sea. Ships can sit side by side, but they can't overlap.</li>
+      <li><b>Take turns firing.</b> Pick a square on the enemy waters and hit <b>FIRE</b>. You see a splash 💦 for a miss and fire 🔥 for a hit.</li>
+      <li><b>Treasure! 💰</b> Hitting a chest loots it and you <b>fire again</b>.</li>
+      <li><b>Sink every ship</b> in the enemy fleet to win. A ship sinks when all its squares are hit.</li>
+      <li><b>2v2 mode:</b> each crew of two shares one fleet and one set of shots. Turns go Red → Blue → Red → Blue, so teammates alternate firing.</li>
+    </ul>
+    <button id="rules-close" class="btn btn-primary">Aye aye!</button>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<div id="about-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2>⚓ Plunder Bay</h2>
+    <p id="about-version"></p>
+    <button id="about-close" class="btn btn-primary">Close</button>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

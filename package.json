@@ -1,0 +1,6 @@
+{
+  "name": "plunderbay",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node scripts/engine-tests.mjs" }
+}
