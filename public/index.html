@@ -12,6 +12,30 @@
 </head>
 <body>
 
+<!-- Launch splash: plays once per app open, tap to skip. Inline script so it runs before app.js (which waits on Firebase) loads. -->
+<div id="splash" aria-hidden="true"><video id="splash-video" src="splash.mp4" muted playsinline autoplay preload="auto"></video></div>
+<script>
+(function () {
+  var s = document.getElementById('splash'), v = document.getElementById('splash-video');
+  var done = false, started = false;
+  function end() {
+    if (done) return;
+    done = true;
+    s.classList.add('out');
+    setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 600);
+  }
+  if (/[?&]fresh=/.test(location.search)) { s.parentNode.removeChild(s); return; } // just refreshed for an update
+  v.addEventListener('playing', function () { started = true; });
+  v.addEventListener('ended', end);
+  v.addEventListener('error', end);
+  s.addEventListener('click', end);
+  setTimeout(function () { if (!started) end(); }, 3000);   // never got going (slow network / autoplay blocked)
+  setTimeout(end, 6000);                                    // hard cap
+  var p = v.play();
+  if (p && p.catch) p.catch(function () { setTimeout(end, 200); });
+})();
+</script>
+
 <div id="toast" class="toast hidden"></div>
 
 <div id="shoutout" class="shoutout hidden" aria-hidden="true">

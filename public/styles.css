@@ -32,6 +32,13 @@ h1, h2 { font-family: Georgia, 'Palatino Linotype', serif; margin: 0; letter-spa
 h1 { font-size: 2.6rem; color: var(--gold); text-shadow: 0 3px 0 var(--wood-dark), 0 6px 14px rgba(0,0,0,.5); }
 h2 { font-size: 1.6rem; color: var(--gold); }
 
+/* ---------- launch splash ---------- */
+#splash { position: fixed; inset: 0; z-index: 300; background: #000; transition: opacity .5s ease; }
+#splash.out { opacity: 0; pointer-events: none; }
+#splash video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+/* Phones/portrait: fill the screen (only the video's soft outer margin gets trimmed). Wide windows: show the whole frame. */
+@media (max-aspect-ratio: 4/5) { #splash video { object-fit: cover; } }
+
 /* ---------- chrome ---------- */
 .version-label { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 8px); left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--muted); opacity: .8; z-index: 30; pointer-events: none; }
 .kebab-btn { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 4px); right: 8px; z-index: 40; background: rgba(0,0,0,.28); color: var(--text); border: 0; border-radius: 10px; width: 40px; height: 36px; font-size: 22px; cursor: pointer; }

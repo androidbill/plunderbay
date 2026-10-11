@@ -33,6 +33,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith('.mp4')) return; // video needs range requests; let the browser handle it directly
   e.respondWith(
     fetch(e.request, { cache: 'no-cache' })
       .then((res) => {
