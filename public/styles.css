@@ -66,6 +66,7 @@ h2 { font-size: 1.6rem; color: var(--gold); }
 .screen { min-height: 100dvh; padding: calc(env(safe-area-inset-top, 0px) + 40px) 0 28px; }
 .home-wrap, .panel-wrap { width: min(94vw, 460px); margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
 .home-wrap { align-items: stretch; text-align: center; padding-top: 14px; }
+.home-banner { width: 100%; height: auto; border-radius: 16px; border: 3px solid var(--wood); box-shadow: 0 0 0 3px var(--wood-dark), 0 10px 24px rgba(0,0,0,.5); display: block; }
 .home-emblem { font-size: 64px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
 .tagline { color: var(--muted); margin: 0 0 8px; line-height: 1.4; }
 .field-label { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-top: 4px; }
