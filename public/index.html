@@ -51,7 +51,14 @@
       <button data-mode="4">👥 4 Players · 2v2</button>
     </div>
 
-    <button id="btn-host" class="btn btn-primary">Host a Game</button>
+    <div class="field-label">Computer pirates</div>
+    <div class="seg" id="home-level">
+      <button data-level="easy">Easy</button>
+      <button data-level="medium" class="on">Medium</button>
+      <button data-level="hard">Hard</button>
+    </div>
+    <button id="btn-solo" class="btn btn-primary">🤖 Play vs Computer</button>
+    <button id="btn-host" class="btn btn-secondary">Host an Online Game</button>
     <button id="btn-join" class="btn btn-secondary">Join with Room Code</button>
     <button id="btn-rules" class="btn btn-ghost">How to play</button>
 
@@ -94,6 +101,14 @@
           <button data-mode="2">2 Players</button>
           <button data-mode="4">4 · 2v2</button>
         </div>
+      </div>
+      <div class="setting-row">
+        <span>Bot level</span>
+        <select id="lobby-level" class="select">
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
       </div>
       <div class="setting-row">
         <span>Turn timer</span>

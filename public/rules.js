@@ -258,3 +258,100 @@ export function pickShot(fleet, shots, rng = Math.random) {
   const pool = hunt.length ? hunt : (open.filter(([x, y]) => (x + y) % 2 === 0).length ? open.filter(([x, y]) => (x + y) % 2 === 0) : open);
   return pool[Math.floor(rng() * pool.length)];
 }
+
+// ------------------------------------------------------------------ bots
+// Bots only use what a human could see: the shot grid, plus which ships are already sunk.
+export const BOT_LEVELS = ['easy', 'medium', 'hard'];
+
+function openCells(shots) {
+  const open = [];
+  for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) if (!shots[shotKey(x, y)]) open.push([x, y]);
+  return open;
+}
+
+// Hit squares that belong to a ship that is not sunk yet.
+function unresolvedHits(fleet, shots) {
+  const sunk = new Set(sunkShipIds(fleet, shots));
+  const map = cellMap(fleet);
+  const out = [];
+  for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+    if (shots[shotKey(x, y)] !== HIT) continue;
+    const owner = map.get(`${x},${y}`);
+    if (owner && !sunk.has(owner.id)) out.push([x, y]);
+  }
+  return out;
+}
+
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const pickOne = (arr, rng) => arr[Math.floor(rng() * arr.length)];
+
+function huntTargets(hits, shots, lineOnly) {
+  const hitSet = new Set(hits.map(([x, y]) => `${x},${y}`));
+  const out = new Map();
+  for (const [hx, hy] of hits) {
+    for (const [dx, dy] of DIRS) {
+      const x = hx + dx, y = hy + dy;
+      if (x < 0 || y < 0 || x >= SIZE || y >= SIZE || shots[shotKey(x, y)]) continue;
+      const continuesLine = hitSet.has(`${hx - dx},${hy - dy}`);
+      if (lineOnly && !continuesLine) continue;
+      out.set(`${x},${y}`, [x, y]);
+    }
+  }
+  return [...out.values()];
+}
+
+// Probability-density search: count every way the remaining ships could still fit.
+function densityPick(fleet, shots, rng) {
+  const sunk = new Set(sunkShipIds(fleet, shots));
+  const remaining = SHIPS.filter((s) => !sunk.has(s.id));
+  const map = cellMap(fleet);
+  const hitSet = new Set(unresolvedHits(fleet, shots).map(([x, y]) => `${x},${y}`));
+  const blocked = (x, y) => {
+    const v = shots[shotKey(x, y)];
+    if (v === MISS || v === LOOT) return true;
+    if (v === HIT) { const o = map.get(`${x},${y}`); return !!o && sunk.has(o.id); }
+    return false;
+  };
+  const score = Array.from({ length: SIZE }, () => new Array(SIZE).fill(0));
+  for (const ship of remaining) {
+    for (const h of [1, 0]) {
+      for (let y = 0; y < SIZE - (h ? 0 : ship.len - 1); y++) {
+        for (let x = 0; x < SIZE - (h ? ship.len - 1 : 0); x++) {
+          const cells = itemCells(ship, { x, y, h });
+          if (cells.some(([cx, cy]) => blocked(cx, cy))) continue;
+          const covered = cells.filter(([cx, cy]) => hitSet.has(`${cx},${cy}`)).length;
+          const w = covered ? 30 * covered : 1;
+          for (const [cx, cy] of cells) score[cy][cx] += w;
+        }
+      }
+    }
+  }
+  let best = -1, ties = [];
+  for (const [x, y] of openCells(shots)) {
+    const s = score[y][x];
+    if (s > best) { best = s; ties = [[x, y]]; } else if (s === best) ties.push([x, y]);
+  }
+  return pickOne(ties, rng);
+}
+
+export function botPick(level, fleet, shots, rng = Math.random) {
+  const open = openCells(shots);
+  if (!open.length) return null;
+  if (level === 'hard') return densityPick(fleet, shots, rng);
+  const hits = unresolvedHits(fleet, shots);
+  if (level === 'medium') {
+    if (hits.length) {
+      const line = hits.length > 1 ? huntTargets(hits, shots, true) : [];
+      const pool = line.length ? line : huntTargets(hits, shots, false);
+      if (pool.length) return pickOne(pool, rng);
+    }
+    const parity = open.filter(([x, y]) => (x + y) % 2 === 0);
+    return pickOne(parity.length ? parity : open, rng);
+  }
+  // easy: usually random, sometimes follows up on a hit
+  if (hits.length && rng() < 0.5) {
+    const pool = huntTargets(hits, shots, false);
+    if (pool.length) return pickOne(pool, rng);
+  }
+  return pickOne(open, rng);
+}

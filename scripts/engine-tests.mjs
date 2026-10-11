@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   SIZE, ITEMS, SHIPS, randomFleet, placeItem, isComplete, cellMap, applyShot, startGame, buildOrder,
-  currentPid, pickShot, shotKey, findFreeSeat, lobbyReady, MISS, HIT, LOOT, tk, evalShot, allShipsSunk,
+  currentPid, pickShot, botPick, BOT_LEVELS, shotKey, findFreeSeat, lobbyReady, MISS, HIT, LOOT, tk, evalShot, allShipsSunk,
 } from '../public/rules.js';
 
 // --- random fleets are always complete, in bounds, non-overlapping
@@ -83,5 +83,27 @@ console.log('avg moves per game', (moves / 200).toFixed(1));
   room = applyShot(room, 'a1', mx, my);
   assert.equal(currentPid(room), 'a2', 'b1 (left) skipped');
 }
+
+// --- bot strength: shots needed to sink a random fleet should drop easy > medium > hard
+const avg = {};
+for (const level of BOT_LEVELS) {
+  let total = 0;
+  const N = 300;
+  for (let i = 0; i < N; i++) {
+    const fleet = randomFleet();
+    let shots = {};
+    while (!allShipsSunk(fleet, shots)) {
+      const pick = botPick(level, fleet, shots);
+      assert(pick, 'bot ran out of cells');
+      assert(!shots[shotKey(pick[0], pick[1])], 'bot re-fired a cell');
+      const { res } = evalShot(fleet, shots, pick[0], pick[1]);
+      shots = { ...shots, [shotKey(pick[0], pick[1])]: res };
+      total++;
+    }
+  }
+  avg[level] = total / N;
+}
+console.log('avg shots to clear a fleet', avg);
+assert(avg.hard < avg.medium && avg.medium < avg.easy, 'difficulty ordering');
 
 console.log('engine tests passed');

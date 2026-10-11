@@ -103,6 +103,10 @@ h2 { font-size: 1.6rem; color: var(--gold); }
 .slot.away { opacity: .5; }
 .slot.empty { border: 2px dashed rgba(255,255,255,.25); color: var(--muted); justify-content: center; cursor: pointer; background: transparent; font-size: 14px; font-family: inherit; }
 .slot .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot.empty.col { flex-direction: column; gap: 6px; padding: 8px; cursor: default; }
+.slot.empty .take { background: transparent; border: 0; color: inherit; font: inherit; cursor: pointer; }
+.slot .addbot { background: rgba(255,255,255,.12); border: 0; color: var(--text); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.slot .lvl { font-size: 11px; opacity: .7; margin-left: 4px; text-transform: capitalize; }
 .slot .kick { background: transparent; border: 0; color: var(--muted); font-size: 16px; cursor: pointer; padding: 0 2px; }
 .settings-card { background: rgba(0,0,0,.22); border-radius: 14px; padding: 8px 12px; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 15px; }

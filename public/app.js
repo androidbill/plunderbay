@@ -10,6 +10,7 @@ import {
   SIZE, COLS, SHIPS, ITEMS, itemById, tk, shotKey, coordName, MISS, HIT, LOOT,
   cellMap, itemCells, placeItem, isComplete, randomFleet, isSunk, shipHits, sunkShipIds, lootedCount,
   toArr, currentPid, seatsPerTeam, findFreeSeat, lobbyReady, startGame, applyShot, pickShot,
+  teamPlayers, botPick, BOT_LEVELS,
 } from './rules.js';
 
 const app = initializeApp(firebaseConfig);
@@ -58,6 +59,8 @@ let playerId = store.get('plunderbay_pid');
 if (!playerId) { playerId = uid(); store.set('plunderbay_pid', playerId); }
 let myName = store.get('plunderbay_name') || '';
 let homeMode = store.get('plunderbay_mode') === '4' ? 4 : 2;
+let homeLevel = BOT_LEVELS.includes(store.get('plunderbay_level')) ? store.get('plunderbay_level') : 'medium';
+const BOT_NAMES = ['Barnacle Bob', 'Salty Sue', 'Peg-Leg Pete', 'Anchor Annie', 'Captain Crunch', 'Mad Maggie', 'One-Eye Jack', 'Rum Runner'];
 
 // ---------------------------------------------------------------- dom helpers
 const $ = (id) => document.getElementById(id);
@@ -211,6 +214,24 @@ $('home-mode').addEventListener('click', (e) => {
   store.set('plunderbay_mode', String(homeMode));
   paintHomeMode();
 });
+function paintHomeLevel() {
+  for (const b of $('home-level').querySelectorAll('button')) b.classList.toggle('on', b.dataset.level === homeLevel);
+}
+paintHomeLevel();
+$('home-level').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-level]');
+  if (!b) return;
+  homeLevel = b.dataset.level;
+  store.set('plunderbay_level', homeLevel);
+  paintHomeLevel();
+});
+$('btn-solo').addEventListener('click', async () => {
+  myName = cleanName($('home-name').value);
+  store.set('plunderbay_name', myName);
+  $('btn-solo').disabled = true;
+  try { await createRoom(true); } catch (e) { toast('Could not start — check your connection'); }
+  $('btn-solo').disabled = false;
+});
 $('home-name').value = myName;
 $('join-name').value = myName;
 
@@ -242,19 +263,34 @@ $('join-go').addEventListener('click', async () => {
 });
 $('join-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('join-go').click(); });
 
-async function createRoom() {
+function makeBot(players, settings, seat) {
+  const used = new Set(Object.values(players).map((p) => p.name));
+  const name = '🤖 ' + (BOT_NAMES.find((n) => !used.has('🤖 ' + n)) || 'Bot ' + Math.floor(Math.random() * 90 + 10));
+  return { name, team: seat.team, seat: seat.seat, bot: true, level: settings.botLevel || 'medium', joinedAt: Date.now() };
+}
+
+// Solo = a normal room where every other seat is a computer pirate and play starts at once.
+async function createRoom(solo = false) {
   let code;
   for (let tries = 0; tries < 20; tries++) {
     code = randomCode();
     const snap = await get(roomRef(code));
     if (!snap.exists()) break;
   }
+  const settings = { mode: homeMode, turnSeconds: solo ? 0 : 45, botLevel: homeLevel };
+  const players = { [playerId]: { name: myName, team: 0, seat: 0, joinedAt: Date.now() } };
+  if (solo) {
+    for (let i = 0; i < seatsPerTeam(homeMode) * 2 - 1; i++) {
+      const seat = findFreeSeat({ settings, players });
+      players['bot_' + i + uid().slice(0, 4)] = makeBot(players, settings, seat);
+    }
+  }
   await set(roomRef(code), {
     createdAt: Date.now(),
     hostId: playerId,
-    status: 'lobby',
-    settings: { mode: homeMode, turnSeconds: 45 },
-    players: { [playerId]: { name: myName, team: 0, seat: 0, joinedAt: Date.now() } },
+    status: solo ? 'placing' : 'lobby',
+    settings,
+    players,
   });
   enterRoom(code);
 }
@@ -350,6 +386,7 @@ function renderRoom() {
   if (room.status === 'lobby') { hide($('over-modal')); resetRoundFx(); renderLobby(); showScreen('screen-lobby'); }
   else if (room.status === 'placing') { hide($('over-modal')); resetRoundFx(); renderPlace(); showScreen('screen-place'); }
   else { renderGame(); showScreen('screen-game'); }
+  driveBots();
 }
 
 // ---------------------------------------------------------------- lobby
@@ -369,9 +406,12 @@ function renderLobby() {
         const [pid, p] = entry;
         const cls = ['slot', 'filled', pid === playerId ? 'me' : '', p.left ? 'away' : ''].join(' ');
         const kick = host && pid !== playerId ? `<button class="kick" data-kick="${esc(pid)}" aria-label="Remove">✕</button>` : '';
-        html += `<div class="${cls}"><span class="nm">${pid === room.hostId ? '👑 ' : ''}${esc(p.name)}</span>${kick}</div>`;
+        const lvl = p.bot ? `<span class="lvl">${esc(p.level || '')}</span>` : '';
+        html += `<div class="${cls}"><span class="nm">${pid === room.hostId ? '👑 ' : ''}${esc(p.name)}${lvl}</span>${kick}</div>`;
       } else {
-        html += `<button class="slot empty" data-team="${team}" data-seat="${seat}">⚓ Take this seat</button>`;
+        html += host
+          ? `<div class="slot empty col"><button class="take" data-team="${team}" data-seat="${seat}">⚓ Take this seat</button><button class="addbot" data-addbot-team="${team}" data-addbot-seat="${seat}">🤖 Add bot</button></div>`
+          : `<button class="slot empty take" data-team="${team}" data-seat="${seat}">⚓ Take this seat</button>`;
       }
     }
     html += '</div>';
@@ -380,6 +420,8 @@ function renderLobby() {
 
   for (const b of $('lobby-mode').querySelectorAll('button')) b.classList.toggle('on', Number(b.dataset.mode) === mode);
   $('lobby-mode').classList.toggle('locked', !host);
+  $('lobby-level').value = room.settings.botLevel || 'medium';
+  $('lobby-level').disabled = !host;
   $('lobby-timer').value = String(room.settings.turnSeconds || 0);
   $('lobby-timer').disabled = !host;
 
@@ -399,7 +441,22 @@ $('lobby-teams').addEventListener('click', async (e) => {
     update(roomRef(currentRoomCode, 'players'), { [kick.dataset.kick]: null });
     return;
   }
-  const slot = e.target.closest('button.slot.empty');
+  const add = e.target.closest('[data-addbot-team]');
+  if (add && isHost()) {
+    const team = Number(add.dataset.addbotTeam), seat = Number(add.dataset.addbotSeat);
+    const bid = 'bot_' + uid().slice(0, 8);
+    await runTransaction(roomRef(currentRoomCode), (cur) => {
+      if (!cur) return cur;
+      const room = normalizeRoom(cur);
+      if (room.status !== 'lobby') return;
+      if (Object.values(room.players).some((p) => p.team === team && p.seat === seat)) return;
+      cur.players = cur.players || {};
+      cur.players[bid] = makeBot(room.players, room.settings, { team, seat });
+      return cur;
+    });
+    return;
+  }
+  const slot = e.target.closest('.take');
   if (!slot) return;
   const team = Number(slot.dataset.team), seat = Number(slot.dataset.seat);
   let taken = false;
@@ -438,6 +495,13 @@ $('lobby-mode').addEventListener('click', async (e) => {
     return cur;
   });
   if (blocked) toast('Too many pirates aboard for 2-player mode — remove someone first');
+});
+$('lobby-level').addEventListener('change', () => {
+  if (!isHost()) return;
+  const level = $('lobby-level').value;
+  const u = { 'settings/botLevel': level };
+  for (const [pid, p] of Object.entries(latestRoom.players)) if (p.bot) u[`players/${pid}/level`] = level;
+  update(roomRef(currentRoomCode), u);
 });
 $('lobby-timer').addEventListener('change', () => {
   if (isHost()) update(roomRef(currentRoomCode, 'settings'), { turnSeconds: Number($('lobby-timer').value) });
@@ -582,11 +646,16 @@ $('place-ready').addEventListener('click', async () => {
   const t = tk(team);
   if (latestRoom.ready[t]) { update(roomRef(currentRoomCode, 'ready'), { [t]: null }); return; }
   if (!isComplete(fleetOf(latestRoom, team))) { toast('Place everything first'); return; }
-  await runTransaction(roomRef(currentRoomCode), (cur) => {
+  await markReady(team, playerId);
+});
+
+function markReady(team, byPid) {
+  const t = tk(team);
+  return runTransaction(roomRef(currentRoomCode), (cur) => {
     if (!cur) return cur;
     const room = normalizeRoom(cur);
     if (room.status !== 'placing' || !isComplete(room.fleets[t])) return;
-    room.ready = { ...room.ready, [t]: playerId };
+    room.ready = { ...room.ready, [t]: byPid };
     if (room.ready.t0 && room.ready.t1 && isComplete(room.fleets.t0) && isComplete(room.fleets.t1)) {
       const started = startGame(room, Math.random() < 0.5 ? 1 : 0);
       started.turnStartedAt = serverTimestamp();
@@ -594,7 +663,55 @@ $('place-ready').addEventListener('click', async () => {
     }
     return room;
   });
-});
+}
+
+// ---------------------------------------------------------------- computer pirates
+// The host's client plays for every bot: places an all-bot crew's fleet, and fires on a
+// bot's turn after a short pause. (If the host leaves, a human's turn timer still keeps
+// things moving through the fallback shooter.)
+let botMoveFor = null;
+let botTimer = null;
+const botPlacing = { 0: false, 1: false };
+
+function driveBots() {
+  const room = latestRoom;
+  if (!room || !isHost()) return;
+  if (room.status === 'placing') {
+    for (const team of [0, 1]) {
+      const members = teamPlayers(room, team);
+      if (!members.length || !members.every((p) => room.players[p].bot)) continue;
+      if (room.ready[tk(team)] || botPlacing[team]) continue;
+      botPlacing[team] = true;
+      setTimeout(async () => {
+        try {
+          await update(roomRef(currentRoomCode), { [`fleets/${tk(team)}`]: randomFleet() });
+          await markReady(team, members[0]);
+        } catch { /* retried on the next room update */ } finally { botPlacing[team] = false; }
+      }, 700 + Math.random() * 600);
+    }
+  } else if (room.status === 'playing' && room.game) {
+    const cur = currentPid(room);
+    const moveNo = room.game.moveNo;
+    if (!room.players[cur]?.bot || botMoveFor === moveNo) return;
+    botMoveFor = moveNo;
+    clearTimeout(botTimer);
+    botTimer = setTimeout(() => botMove(cur, moveNo), 1100 + Math.random() * 900);
+  }
+}
+
+async function botMove(pid, moveNo) {
+  const room = latestRoom;
+  if (!room || room.status !== 'playing' || room.game.moveNo !== moveNo || currentPid(room) !== pid) return;
+  const bot = room.players[pid];
+  const target = 1 - bot.team;
+  const pick = botPick(bot.level || 'medium', fleetOf(room, target), room.game.shots[tk(target)]);
+  try {
+    if (pick) await sendShot(pick[0], pick[1], pid);
+  } catch {
+    botMoveFor = null;
+    setTimeout(driveBots, 1500);
+  }
+}
 
 // ---------------------------------------------------------------- game
 let aim = null;            // {x,y} the local player has tapped but not fired yet
@@ -606,6 +723,7 @@ let overTimer = null;
 let overShownKey = null;
 
 function resetRoundFx() {
+  botMoveFor = null; clearTimeout(botTimer);
   aim = null; firing = false; lastMoveNo = null; wasMyTurn = false; popPending = false;
   clearTimeout(overTimer); overShownKey = null;
 }
